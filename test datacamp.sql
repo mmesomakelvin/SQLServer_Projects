@@ -65,5 +65,4 @@ from [Sales].[SalesTaxRate];
 
 select * from [Production].[Product];
 
-
-
+select * from [HumanResources].[Shift];
