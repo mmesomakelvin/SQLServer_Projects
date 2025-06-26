@@ -95,3 +95,123 @@ select * from [Production].[Product];
 select * from [HumanResources].[Shift];
 
 --FILTERING TEXT/WILD CARDS
+--using the WILD CARD operation (% and _) on the Person.Addresstype table
+
+select * from [Person].[AddressType];
+
+select Addresstypeid, [Name]
+from [Person].[AddressType]
+Where [Name] like 'B%';
+
+select Addresstypeid, [Name]
+from [Person].[AddressType]
+Where [Name] like 'Ma_'; --No result as the unerscore wild card only checks for 1 argument
+
+select Addresstypeid, [Name]
+from [Person].[AddressType]
+Where [Name] like 'Ma_%'; -- adding the % wild cards then brings in everything when combined.
+
+--uSING THE NOT LIKE WILD CARD
+Select * from [Person].[Password];
+
+Select * from [Person].[Password]
+where PasswordHash Not Like '_B%' -- to check the password hash column and remove anything with the second letter being B
+
+Select * from [Person].[Password]
+where PasswordSalt Not Like 'A%';
+
+--USING THE IN OPERATOR
+Select * from [Person].[Person];
+
+Select FirstName, lastname, middlename as mid
+from [Person].[Person]
+where Lastname in ('sanchez', 'erickson')
+and middlename not like '_e%';--Rows with middlename = NULL are filtered out because NULL NOT LIKE '_e%' evaluates to unknown, not TRUE.
+
+Select count (FirstName) as total_count, lastname, middlename as mid
+from [Person].[Person]
+where Lastname in ('sanchez', 'erickson')
+and middlename not like '_e%'
+group by lastname, MiddleName;--All non-aggregated columns in SELECT (like LastName, MiddleName) must be listed in the GROUP BY.
+
+--checking for nulls
+Select * from [Person].[Person];
+
+select title, firstname, middlename
+from [Person].[Person] 
+where suffix is not null;
+
+select title, firstname, middlename
+from [Person].[Person] 
+where suffix is null;
+
+select count (*) as empty_titles
+from [Person].[Person]
+where Title is null;
+
+--AGGREGATE FUNCTIONS: SUM, MIN, MAX, COUNT, AVG
+SELECT * FROM [Purchasing].[PurchaseOrderHeader];
+
+SELECT SUM(SUBTOTAL) AS TOTAL_SUB
+FROM [Purchasing].[PurchaseOrderHeader];
+
+select avg(taxamt) as tax_amount
+from [Purchasing].[PurchaseOrderHeader]
+where PurchaseOrderID > 5;
+
+select max(subtotal) as max_sub, min(subtotal) as min_sub
+from [Purchasing].[PurchaseOrderHeader];
+
+select round(sum(totaldue),-4) as total_4_sum
+from [Purchasing].[PurchaseOrderHeader]
+where ShipMethodID = 4;
+
+select round(sum(totaldue),0) as total_due_sum
+from [Purchasing].[PurchaseOrderHeader]
+where ShipMethodID in (3,5);
+
+--round up to the nesrest thoussnd (-3)
+select round(sum(totaldue),-3) as total_due_sum
+from [Purchasing].[PurchaseOrderHeader]
+where ShipMethodID in (3,5);
+
+
+
+--ARTHMETIC FUNCTIONS ( +, -, * , and /)
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+--to test
+select salesorderid, revisionnumber, (salesorderid + revisionnumber) as test
+from [Sales].[SalesOrderHeader];
+
+select count (totaldue) * 100/count(*) as percentage_totaldue
+from [Sales].[SalesOrderHeader]; --cpunt to see % of rows that are not null
+
+--test
+select round(sum(totaldue)/60,-4) as total_4_sum
+from [Purchasing].[PurchaseOrderHeader]
+where ShipMethodID = 4; --pay very close attention to how this is written compared to the rounds above when putting decimal place rounding after a number
+
+--SORTING AND GROUPING
+select * from [Sales].[SalesPerson];
+
+select territoryid, saleslastyear, salesytd
+from [Sales].[SalesPerson]
+where TerritoryID is not null
+order by salesytd desc; 
+
+select businessentityid, sum(Bonus) as totalBonus, TerritoryID
+from [Sales].[SalesPerson]
+group by BusinessEntityID, TerritoryID
+order by territoryid asc, totalBonus desc;
+
+--HAVING
+select businessentityid, sum(Bonus) as totalBonus, TerritoryID
+from [Sales].[SalesPerson]
+group by BusinessEntityID, TerritoryID
+HAVING SUM(BONUS) > 4000
+order by territoryid asc, totalBonus desc;
+
+
+
+
