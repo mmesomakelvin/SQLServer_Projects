@@ -212,6 +212,8 @@ group by BusinessEntityID, TerritoryID
 HAVING SUM(BONUS) > 4000
 order by territoryid asc, totalBonus desc;
 
+hi
+
 
 
 
