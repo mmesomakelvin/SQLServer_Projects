@@ -1,9 +1,12 @@
+--Exploratory Data Analysis
+
 --To understand what the table looks like in the Person.Person and Sales.Customer Tables
 --** Have to use the SELECT * Statement
 SELECT * FROM [Person].[Person];
 SELECT * FROM [Sales].[Customer];
 
 --To select specific columns from the sales.custoner table just for exploratory practice sake
+--Retrieve specific columns (CustomerID, PersonID, and rowguid) from the Sales.Customer table
 SELECT CUSTOMERID, PERSONID, ROWGUID
 FROM [Sales].[Customer];
 
@@ -85,10 +88,6 @@ where (Name = 'Canadian GST' OR Name = 'Germany Output Tax')
 and (TaxType = 1 or TaxType = 3)
 and TaxRate >= 10;
 
-
-
-SELECT pgtype_of (Taxtype)
-from [Sales].[SalesTaxRate];
 
 select * from [Production].[Product];
 
@@ -176,7 +175,6 @@ from [Purchasing].[PurchaseOrderHeader]
 where ShipMethodID in (3,5);
 
 
-
 --ARTHMETIC FUNCTIONS ( +, -, * , and /)
 SELECT * FROM [Sales].[SalesOrderHeader];
 
@@ -185,7 +183,7 @@ select salesorderid, revisionnumber, (salesorderid + revisionnumber) as test
 from [Sales].[SalesOrderHeader];
 
 select count (totaldue) * 100/count(*) as percentage_totaldue
-from [Sales].[SalesOrderHeader]; --cpunt to see % of rows that are not null
+from [Sales].[SalesOrderHeader]; --count to see % of rows that are not null
 
 --test
 select round(sum(totaldue)/60,-4) as total_4_sum
@@ -206,6 +204,16 @@ group by BusinessEntityID, TerritoryID
 order by territoryid asc, totalBonus desc;
 
 --HAVING
+--The HAVING clause is used to filter the results of a GROUP BY query based on aggregate function conditions
+
+select * from [Sales].[SalesPerson];
+
+-- Retrieve the total bonus earned by each salesperson, along with their associated territory
+-- Group the data by BusinessEntityID and TerritoryID to calculate total bonuses per salesperson within each territory
+-- Include only those salespeople whose total bonus exceeds 4,000 using the HAVING clause
+-- The result is sorted first by TerritoryID in ascending order, then by total bonus in descending order
+-- This helps identify top-earning salespeople per territory based on bonuses
+
 select businessentityid, sum(Bonus) as totalBonus, TerritoryID
 from [Sales].[SalesPerson]
 group by BusinessEntityID, TerritoryID
@@ -213,6 +221,159 @@ HAVING SUM(BONUS) > 4000
 order by territoryid asc, totalBonus desc;
 
 
+select * from [Sales].[SalesOrderHeader];
+
+-- Retrieve the total order subtotal for each shipping method where specific conditions are met
+-- Filters:
+--   - Only include orders with a non-null CurrencyRateID (i.e., currency conversion is applicable)
+--   - Freight charges must be at least 150
+--   - Tax amount must fall between 1000 and 2000
+--   - ShipMethodID must be either 3, 4, or 5
+-- Group the filtered records by ShipMethodID to compute the total subtotal per shipping method
+-- Only include shipping methods where the total subtotal exceeds 10,000
+-- Finally, sort the result set by ShipMethodID in ascending order
+
+select Shipmethodid, sum(subtotal) as total_subtotal
+from [Sales].[SalesOrderHeader]
+where CurrencyRateID is not null
+and Freight >= 150 and TaxAmt between 1000 and 2000
+and ShipMethodID in (3,4,5)
+group by ShipMethodID
+having SUM(subtotal) >10000
+order by ShipMethodID asc;
+
+--INNER JOIN
+--The INNER JOIN keyword selects records that have matching values in both tables.
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+Select ProductID, CarrierTrackingNumber, UnitPrice, SOH.Subtotal, SOH.shipdate
+from [Sales].[SalesOrderDetail] as SOD
+INNER JOIN [Sales].[SalesOrderHeader] AS SOH
+ON SOD.SalesOrderID = SOH.SalesOrderID;
+
+SELECT * FROM [Person].[Person];
+SELECT * FROM [Sales].[Customer];
+
+Select FirstName, LastName, Sc.storeid, Sc.territoryid
+from [Person].[Person] as PP
+INNER JOIN [Sales].[Customer] AS Sc
+ON pp.businessentityid = sc.PersonID
+where sc.storeid is not null; --the where should always come after the all the inner joins
+
+--INNER JOIN / USING
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[Customer];
+
+Select shipmethodid, taxamt, freight, sc.customerid, sc.storeid
+from [Sales].[SalesOrderHeader] as SOH
+Inner join [Sales].[Customer] as Sc
+USING (Customerid); --this will throw an error message as using does not work in sql ssms
+
+Select shipmethodid, taxamt, freight, sc.customerid, sc.storeid
+from [Sales].[SalesOrderHeader] as SOH
+Inner join [Sales].[Customer] as Sc
+on soh.CustomerID = sc.CustomerID;
+
+--MULTIPLE JOINS
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[Customer];
+SELECT * FROM [Person].[Person];
+
+SELECT status, duedate, shipdate, sc.personid, sc.storeid,pp.firstname, pp.lastname
+from [Sales].[SalesOrderHeader] as soh
+inner join [Sales].[Customer] as sc
+on soh.CustomerID = sc.CustomerID
+inner join [Person].[Person] as pp
+on sc.PersonID = pp.BusinessEntityID
+where sc.StoreID is not null;
+
+--Joining more than 3 tables
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[SalesOrderDetail];
+SELECT * FROM [Production].[Product];
+SELECT * FROM [Production].[ProductSubcategory];
+
+Select orderdate, duedate, shipdate, sod.unitprice, sod.orderqty, prp.[name],
+prp.[productnumber], prps.productcategoryid
+from [Sales].[SalesOrderHeader] as soh
+inner join [Sales].[SalesOrderDetail] as sod
+on soh.SalesOrderID = sod.SalesOrderID
+inner join [Production].[Product] as prp
+on sod.ProductID = prp.ProductID
+inner join [Production].[ProductSubcategory] as prps
+on prp.ProductSubcategoryID = prps.ProductSubcategoryID
+order by sod.OrderQty desc;
+
+--Joining on Multiple Keys
+SELECT * FROM [Sales].[SalesOrderHeader];
+Select * from [Person].[Address];
+
+
+select salesorderid, territoryid, CreditCardApprovalCode, pa.addressline1, pa.city, pa.stateprovinceid
+from [Sales].[SalesOrderHeader] soh
+inner join [Person].[Address] pa
+on soh.ShipToAddressID = pa.AddressID
+and soh.BillToAddressID = pa.AddressID;
+
+--LEFT JOIN
+--The LEFT JOIN keyword returns all records from the left table (table1), and the matching records 
+--from the right table (table2). The result is 0 records from the right side, if there is no match.
+
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[Customer];
+
+Select shipmethodid, taxamt, freight, sc.customerid, sc.storeid
+from [Sales].[SalesOrderHeader] as SOH
+left join [Sales].[Customer] as Sc
+on soh.CustomerID = sc.CustomerID;
+
+Select shipmethodid, round(sum(taxamt),0) as total_taxamt, freight, sc.customerid, sc.storeid
+from [Sales].[SalesOrderHeader] as SOH
+left join [Sales].[Customer] as Sc
+on soh.CustomerID = sc.CustomerID
+group by soh.shipmethodid, soh.Freight, sc.customerid, sc.storeid
+having round(sum(taxamt),0) > 1000
+order by total_taxamt desc;
+
+--RIGHT JOIN
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[Customer];
+SELECT * FROM [Person].[Person];
+
+SELECT status, duedate, shipdate, sc.personid, sc.storeid,pp.firstname, pp.lastname
+from [Sales].[SalesOrderHeader] as soh
+Right join [Sales].[Customer] as sc
+on soh.CustomerID = sc.CustomerID
+Right join [Person].[Person] as pp
+on sc.PersonID = pp.BusinessEntityID
+where DueDate is not null
+and ShipDate is not null; --notice that i did not have to put the soh alias here and on ship date as i am using the from syntax on the table that houses them
+
+--FULL JOIN
+--The FULL OUTER JOIN keyword returns all records when there is a match in left (table1) or right (table2) table records.
+--Tip: FULL OUTER JOIN and FULL JOIN are the same.
+
+SELECT * FROM [Sales].[SalesPerson];
+SELECT * FROM [HumanResources].[Employee];
+
+select * from [Sales].[SalesPerson] as ssp
+full join [HumanResources].[Employee] as he
+on ssp.BusinessEntityID = he.BusinessEntityID;
+
+
+SELECT top 5 salesytd, count(distinct ssp.BusinessEntityID) as Unique_bid, he.jobtitle
+from [Sales].[SalesPerson] as ssp
+full join [HumanResources].[Employee] as he
+on ssp.BusinessEntityID = he.BusinessEntityID
+group by SalesYTD, he.JobTitle
+order by SalesYTD desc;
+
+select jobtitle, birthdate, maritalstatus, ssp.bonus
+from [HumanResources].[Employee] as he
+full join [Sales].[SalesPerson] as ssp
+on he.BusinessEntityID = ssp.BusinessEntityID
+where JobTitle like '%Engineer';
 
 
 
