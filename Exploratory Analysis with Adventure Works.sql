@@ -375,6 +375,72 @@ full join [Sales].[SalesPerson] as ssp
 on he.BusinessEntityID = ssp.BusinessEntityID
 where JobTitle like '%Engineer';
 
+--CROSS JOIN
+--The CROSS JOIN keyword returns all records from both tables (table1 and table2).
+--You do not need to use the ON clause here
+--CROSS JOIN simply creates a Cartesian product (all possible row combinations) between the two tables.
+--It doesn’t require or allow a join condition.
+SELECT * FROM [Production].[Product];
+SELECT * FROM [Sales].[Currency];
 
+Select P.Name, P.ProductNumber, sc.currencycode
+from [Production].[Product] as P
+Cross Join  [Sales].[Currency] as sc
+--where p.ReorderPoint <600;
+
+--CROSS JOIN MULTIPLE TABLES
+SELECT * FROM [HumanResources].[Shift];
+SELECT * FROM [Person].[AddressType];
+
+select * from
+[Production].[Product]
+cross join [Sales].[Currency]
+cross join [HumanResources].[Shift]
+cross join [Person].[AddressType];
+
+
+SELECT AVG (P.SAFETYSTOCKLEVEL) as Avg_safetystock, p.Name, ProductNumber, hs.Name, pa.name, sc.name
+FROM [Production].[Product] as p
+cross join [HumanResources].[Shift] as hs
+cross join [Person].[AddressType] as pa
+cross join [Sales].[Currency] as sc
+where hs.name in ('Day', 'Night') -- where shpuld always come before group by and order by
+group by p.Name, ProductNumber, hs.Name, pa.name, sc.name
+having avg (p.safetystocklevel) >= 200
+order by p.name;
+
+--SELF JOIN
+--A self join is a regular join, but the table is joined with itself.
+
+SELECT * FROM [HumanResources].[Employee];
+
+SELECT 
+    E.BusinessEntityID AS EmployeeID,
+    E.JobTitle AS EmployeeTitle,
+    M.BusinessEntityID AS ManagerID,
+    M.JobTitle AS ManagerTitle,
+    MM.BusinessEntityID AS TopManagerID,
+    MM.JobTitle AS TopManagerTitle
+FROM 
+    HumanResources.Employee AS E
+LEFT JOIN 
+    HumanResources.Employee AS M   -- Manager
+    ON E.OrganizationNode.GetAncestor(1) = M.OrganizationNode
+LEFT JOIN 
+    HumanResources.Employee AS MM  -- Manager's Manager
+    ON M.OrganizationNode.GetAncestor(1) = MM.OrganizationNode;
+
+
+SELECT 
+    Emp.BusinessEntityID AS EmployeeID,
+    Emp.JobTitle,
+    Manager.BusinessEntityID AS ManagerID,
+    Manager.JobTitle AS ManagerTitle
+FROM 
+    HumanResources.Employee AS Emp
+INNER JOIN 
+    HumanResources.Employee AS Manager
+    ON Emp.OrganizationNode = Manager.OrganizationNode
+--AND  Emp.OrganizationNode <> Manager.OrganizationNode; (NO RESULT CAME OUT AFTER THIS
 
 
