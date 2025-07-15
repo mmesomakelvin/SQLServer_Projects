@@ -444,3 +444,81 @@ INNER JOIN
 --AND  Emp.OrganizationNode <> Manager.OrganizationNode; (NO RESULT CAME OUT AFTER THIS
 
 
+--UNION AND UNION ALL
+--The UNION operator is used to combine the result-set of two or more SELECT statements.
+--Every SELECT statement within UNION must have the same number of columns
+--The columns must also have similar data types
+--The columns in every SELECT statement must also be in the same order
+
+
+--UNION
+SELECT * FROM [Purchasing].[PurchaseOrderHeader];
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+SELECT ORDERDATE, SUBTOTAL, TAXAMT, PPO.FREIGHT
+FROM [Purchasing].[PurchaseOrderHeader] AS PPO
+UNION
+SELECT ORDERDATE, SUBTOTAL, TAXAMT, FREIGHT
+FROM [Sales].[SalesOrderHeader];
+
+
+SELECT ORDERDATE, SUBTOTAL, TAXAMT, PPO.FREIGHT
+FROM [Purchasing].[PurchaseOrderHeader] AS PPO
+WHERE FREIGHT IS NOT NULL-- NOTICE I KEPT THE WHERE EACH SELECT FROM STATEMENT SHOULD HAVE THEIR OWN WHERE CLAUSES INDEPENDENTLY
+UNION
+SELECT ORDERDATE, SUBTOTAL, TAXAMT, FREIGHT
+FROM [Sales].[SalesOrderHeader];
+
+--UNION ALL
+--The UNION ALL command combines the result set of two or more SELECT statements (allows duplicate values).
+SELECT * FROM [Production].[ProductCostHistory];
+SELECT * FROM [Production].[ProductListPriceHistory];
+
+--TESTING THIS OUT
+SELECT PRODUCTID, STARTDATE, ENDDATE, STANDARDCOST AS PRICE, MODIFIEDDATE
+FROM [Production].[ProductCostHistory]
+WHERE ENDDATE IS NOT NULL
+UNION ALL 
+SELECT PRODUCTID, STARTDATE, ENDDATE, LISTPRICE, MODIFIEDDATE
+FROM [Production].[ProductListPriceHistory]
+WHERE ENDDATE IS NOT NULL
+ORDER BY ProductID; --Notice that you can use order by after the union operator has been perfrormed
+
+--INTERCEPT
+--The INTERSECT operator in SQL is used to retrieve the records that are identical/common between the result sets of two or more tables.
+SELECT * FROM [Sales].[SalesPerson];
+SELECT * FROM [Sales].[SalesPersonQuotaHistory];
+
+--This is a test
+SELECT BUSINESSENTITYID
+FROM [Sales].[SalesPerson]
+intersect
+select BUSINESSENTITYID
+from [Sales].[SalesPersonQuotaHistory];
+
+SELECT BUSINESSENTITYID
+FROM [Sales].[SalesPerson]
+where TerritoryID is not null --you can use a where clause from another column, just make sure that what is being intercected is the same column/data type on both tables
+intersect
+select BUSINESSENTITYID
+from [Sales].[SalesPersonQuotaHistory]
+order by BusinessEntityID;
+
+--EXCEPT
+--The SQL EXCEPT operator is used to return the rows from the first SELECT statement that are not present in the second SELECT statement. 
+--This operator is conceptually similar to the subtract operator in relational algebra. 
+--It is particularly useful for excluding specific data from your result set.
+
+SELECT * FROM [Person].[Address];
+select * from [Person].[BusinessEntityAddress];
+
+SELECT ADDRESSID
+FROM [Person].[Address]
+EXCEPT 
+SELECT ADDRESSID
+FROM [Person].[BusinessEntityAddress]; --RETURNED EMOTY COS EVERYTHING IN THE LEFT TABLE EXISTS IN THE RIGHT TABLE
+
+
+
+
+
