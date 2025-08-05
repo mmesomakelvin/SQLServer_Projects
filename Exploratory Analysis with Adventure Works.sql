@@ -518,7 +518,119 @@ EXCEPT
 SELECT ADDRESSID
 FROM [Person].[BusinessEntityAddress]; --RETURNED EMOTY COS EVERYTHING IN THE LEFT TABLE EXISTS IN THE RIGHT TABLE
 
+--SUBQUERIES
+--a subquery can be defined as a query embedded within another query.
+--We have Semi Join and Anti Join.
+
+--SEMI JOIN
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[Customer];
+--CONNECTING COLUMN IS CUSTOMERID
+
+SELECT * FROM [Sales].[SalesOrderHeader]
+WHERE CustomerID IN
+    (SELECT CUSTOMERID FROM
+    [Sales].[Customer]
+    WHERE PersonID IS NOT NULL);
+
+SELECT STOREID, TERRITORYID
+FROM [Sales].[Customer]
+WHERE TERRITORYID > 4
+AND CUSTOMERID IN
+    (SELECT CustomerID
+    FROM [Sales].[SalesOrderHeader]
+    WHERE STATUS = 5
+    AND SalesOrderID > 75000); --RETURNED NO RESULT. LET ME CHANGE THE ALIGNMENT
 
 
+SELECT SALESORDERID, ORDERDATE, DUEDATE, ONLINEORDERFLAG
+FROM [Sales].[SalesOrderHeader]
+WHERE STATUS >= 5
+    AND SalesOrderID > 75000
+    AND CustomerID IN
+        (SELECT CUSTOMERID FROM
+        [Sales].[Customer]
+        WHERE TerritoryID > 3)
+        ORDER BY STATUS;
 
+--ANTI JOIN
+SELECT * FROM [Production].[Product];
+SELECT * FROM [Production].[ProductSubcategory];
+--Connecting column: ProductSubcategoryID
+
+
+SELECT PRODUCTID, [NAME], COLOR
+FROM [Production].[Product]
+WHERE SIZE IS NOT NULL
+AND ProductSubcategoryID NOT IN
+    (SELECT ProductSubcategoryID
+    FROM [Production].[ProductSubcategory]
+    WHERE NAME like '%Chains');
+
+SELECT ProductID, Name
+FROM Production.Product
+WHERE ProductSubcategoryID NOT IN (
+    SELECT ProductSubcategoryID
+    FROM Production.ProductSubcategory
+);-- did not brign up a result
+
+
+--SUBQUERIES WITH WHERE STATEMENT (SIMILAR TO WHAT WE HAVE DONE ABOVE)
+--Use it when:
+--You want to filter rows from your main table based on whether a condition is met in another table.
+--Typical use cases:
+--Check if a value exists (or doesn’t exist) in another table.
+--Filter data based on a relationship.
+
+SELECT * FROM [Production].[Product];
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+SELECT 
+    ProductID, 
+    Name
+FROM [Production].[Product]
+WHERE ProductID IN (
+    SELECT ProductID
+    FROM [Sales].[SalesOrderDetail]
+    where color is not null
+);
+
+--SUBQUERIES WITH SELECT STATEMENT
+
+SELECT 
+    ProductID, 
+    Name,
+    (SELECT SUM(OrderQty) 
+     FROM [Sales].[SalesOrderDetail] SOD
+     WHERE SOD.ProductID = P.ProductID) AS TotalQtySold
+FROM [Production].[Product] P;
+
+--to remove the null values
+--Use ISNULL or most popularly, use COALESCE
+SELECT 
+    ProductID, 
+    Name,
+    ISNULL((
+        SELECT SUM(OrderQty) 
+        FROM [Sales].[SalesOrderDetail] SOD
+        WHERE SOD.ProductID = P.ProductID
+    ), 0) AS TotalQtySold
+FROM [Production].[Product] P;
+
+--CASE
+--The CASE command is used is to create different output based on conditions.
+
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[Customer];
+
+--Add a column indicating if the order is online or not.
+SELECT 
+    SalesOrderID,
+    OrderDate,
+    -- Simple CASE to show if the order was placed online or offline
+    CASE 
+        WHEN OnlineOrderFlag = 1 THEN 'Online'
+        ELSE 'Offline'
+    END AS OrderType
+FROM [Sales].[SalesOrderHeader];
 
