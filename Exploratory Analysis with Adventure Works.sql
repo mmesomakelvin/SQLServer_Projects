@@ -605,6 +605,7 @@ SELECT
      WHERE SOD.ProductID = P.ProductID) AS TotalQtySold
 FROM [Production].[Product] P;
 
+
 --to remove the null values
 --Use ISNULL or most popularly, use COALESCE
 SELECT 
@@ -616,6 +617,7 @@ SELECT
         WHERE SOD.ProductID = P.ProductID
     ), 0) AS TotalQtySold
 FROM [Production].[Product] P;
+
 
 --CASE
 --The CASE command is used is to create different output based on conditions.
@@ -633,4 +635,259 @@ SELECT
         ELSE 'Offline'
     END AS OrderType
 FROM [Sales].[SalesOrderHeader];
+
+--Classify orders by status (shipped, canceled, in process, etc.).
+SELECT 
+    SalesOrderID,
+    Status,
+    -- CASE for descriptive order status
+    CASE 
+        WHEN Status = 1 THEN 'In Process'
+        WHEN Status = 2 THEN 'Approved'
+        WHEN Status = 3 THEN 'Backordered'
+        WHEN Status = 4 THEN 'Rejected'
+        WHEN Status = 5 THEN 'Shipped'
+        WHEN Status = 6 THEN 'Canceled'
+        ELSE 'Unknown'
+    END AS OrderStatusDescription
+FROM [Sales].[SalesOrderHeader];
+
+
+--Using AND in a CASE statement
+SELECT 
+    SalesOrderID,
+    SubTotal,
+    -- Use AND to check multiple conditions
+    CASE 
+        WHEN SubTotal > 1000 AND SubTotal < 5000 THEN 'Medium Order'
+        WHEN SubTotal >= 5000 THEN 'Large Order'
+        ELSE 'Small Order'
+    END AS OrderSize
+FROM [Sales].[SalesOrderHeader];
+
+
+--Using BETWEEN in a CASE statement
+SELECT 
+    SalesOrderID,
+    SubTotal,
+    -- Use BETWEEN for range checks
+    CASE 
+        WHEN SubTotal BETWEEN 1000 AND 4999 THEN 'Medium Order'
+        WHEN SubTotal >= 5000 THEN 'Large Order'
+        ELSE 'Small Order'
+    END AS OrderSize
+FROM [Sales].[SalesOrderHeader];
+
+
+
+--Classify orders by value and shipping method
+SELECT 
+    SalesOrderID,
+    SubTotal,
+    ShipMethodID,
+    -- Complex CASE to label high-value, medium, or low-value and special shipping
+    CASE 
+        WHEN SubTotal > 10000 AND ShipMethodID = 4 THEN 'High Value - Express Shipping'
+        WHEN SubTotal > 10000 THEN 'High Value'
+        WHEN SubTotal BETWEEN 5000 AND 10000 THEN 'Medium Value'
+        ELSE 'Low Value'
+    END AS OrderCategory
+FROM [Sales].[SalesOrderHeader];
+
+
+--Using Case "When" with Join
+SELECT 
+    SOH.SalesOrderID,
+    SOH.OrderDate,
+    C.CustomerID,
+    C.PersonID,
+    -- Simple CASE: Label order as 'Store Customer' or 'Individual'
+    CASE 
+        WHEN C.PersonID IS NULL THEN 'Store Customer'
+        ELSE 'Individual'
+    END AS CustomerType,
+    -- Complex CASE: Order-Channel combined with customer type
+    CASE 
+        WHEN SOH.OnlineOrderFlag = 1 AND C.PersonID IS NOT NULL THEN 'Online Individual Order'
+        WHEN SOH.OnlineOrderFlag = 1 AND C.PersonID IS NULL THEN 'Online Store Order'
+        WHEN SOH.OnlineOrderFlag = 0 AND C.PersonID IS NOT NULL THEN 'Offline Individual Order'
+        ELSE 'Offline Store Order'
+    END AS ChannelCustomerType
+FROM [Sales].[SalesOrderHeader] SOH
+INNER JOIN [Sales].[Customer] C
+    ON SOH.CustomerID = C.CustomerID;
+
+
+--Add a flag to show if a customer has an individual record (PersonID not null):
+SELECT
+    soh.SalesOrderID,
+    soh.OrderDate,
+    c.CustomerID,
+    -- LEFT JOIN allows us to catch SalesOrderHeader records without a matching customer
+    CASE
+        WHEN c.CustomerID IS NULL THEN 'No Customer'
+        WHEN c.PersonID IS NOT NULL THEN 'Individual Customer'
+        ELSE 'Store Customer'
+    END AS CustomerStatus
+FROM [Sales].[SalesOrderHeader] soh
+LEFT JOIN [Sales].[Customer] c
+    ON soh.CustomerID = c.CustomerID;
+
+
+--SGroup orders by status and show the count of each status, ordered by count descending
+SELECT
+    -- Use CASE to create readable status names
+    CASE
+        WHEN Status = 1 THEN 'In Process'
+        WHEN Status = 2 THEN 'Approved'
+        WHEN Status = 3 THEN 'Backordered'
+        WHEN Status = 4 THEN 'Rejected'
+        WHEN Status = 5 THEN 'Shipped'
+        WHEN Status = 6 THEN 'Canceled'
+        ELSE 'Other'
+    END AS StatusDescription,
+    COUNT(*) AS OrderCount
+FROM [Sales].[SalesOrderHeader]
+GROUP BY
+    CASE
+        WHEN Status = 1 THEN 'In Process'
+        WHEN Status = 2 THEN 'Approved'
+        WHEN Status = 3 THEN 'Backordered'
+        WHEN Status = 4 THEN 'Rejected'
+        WHEN Status = 5 THEN 'Shipped'
+        WHEN Status = 6 THEN 'Canceled'
+        ELSE 'Other'
+    END
+ORDER BY OrderCount DESC; -- only returns result for 5 as thats the only status it is seeing
+
+
+--CASE, FILTER (WHERE), JOIN
+--Find orders from 2013 or 2014, and label each as ‘Store’ or ‘Individual’:
+SELECT
+    soh.SalesOrderID,
+    soh.OrderDate,
+    c.CustomerID,
+    CASE
+        WHEN c.PersonID IS NULL THEN 'Store'
+        ELSE 'Individual'
+    END AS CustomerType
+FROM [Sales].[SalesOrderHeader] soh
+INNER JOIN [Sales].[Customer] c
+    ON soh.CustomerID = c.CustomerID
+WHERE
+    YEAR(soh.OrderDate) = 2013 OR YEAR(soh.OrderDate) = 2014;
+
+
+    --uSING from in Case
+    --A subquery in the FROM clause acts like a temporary table for your outer query, letting you build on summarized or filtered results.
+    --When you place a SELECT statement inside the FROM clause, it’s called a subquery in the FROM clause or an inline view or derived table.
+SELECT 
+    c.CustomerID,
+    c.PersonID,
+    c.StoreID,
+    summary.LargeOrderCount
+FROM [Sales].[Customer] c
+INNER JOIN (
+    SELECT 
+        CustomerID, 
+        COUNT(*) AS LargeOrderCount
+    FROM [Sales].[SalesOrderHeader]
+    WHERE SubTotal >= 10000
+    GROUP BY CustomerID
+) AS summary
+    ON c.CustomerID = summary.CustomerID
+ORDER BY summary.LargeOrderCount DESC;
+
+
+--CASE STATEMENTS WITH AGGREGATE FUNCTIONS (ALREADY WORKED ON SOME ABOVE)
+SELECT * FROM [Production].[Product];
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+
+--CASE with Aggregate (AVG) 
+--Label products based on whether their StandardCost is above or below the average
+SELECT
+    ProductID,
+    Name,
+    StandardCost,
+    -- Compare each product's StandardCost to the rounded average cost
+    CASE
+        WHEN StandardCost > (
+            SELECT AVG(StandardCost) FROM [Production].[Product]
+        ) THEN 'Above Average Cost'
+        ELSE 'Average or Below'
+    END AS CostCategory
+FROM [Production].[Product];
+
+
+-- CASE with COUNT (e.g., count how many products are above/below average cost)
+SELECT
+    COUNT(CASE 
+        WHEN p.StandardCost > a.AvgCost THEN 1
+        ELSE NULL
+    END) AS AboveAvgCount,
+    COUNT(CASE 
+        WHEN p.StandardCost <= a.AvgCost THEN 1
+        ELSE NULL
+    END) AS AtOrBelowAvgCount
+FROM [Production].[Product] p,
+     (SELECT AVG(StandardCost) AS AvgCost FROM [Production].[Product]) a;
+
+
+ --Sum order quantities by 'Bulk' or 'Regular'
+ SELECT
+    SUM(CASE
+        WHEN OrderQty >= 1 THEN OrderQty
+        ELSE 0
+    END) AS BulkOrderQty,
+    
+    SUM(CASE
+        WHEN OrderQty < 100 THEN OrderQty
+        ELSE 0
+    END) AS RegularOrderQty
+FROM [Sales].[SalesOrderDetail];
+
+
+--CASE using Percentage (OrderQty vs. SUM for the same order)
+--Show each item's quantity as a percentage of the total quantity in its order, and label as 'Major Contribution' if above 50%
+SELECT
+    SalesOrderID,
+    ProductID,
+    OrderQty,
+    -- Percentage calculation for this item's quantity vs. total for the order
+    ROUND(
+        100.0 * OrderQty / 
+        (SELECT SUM(OrderQty) FROM [Sales].[SalesOrderDetail] sod2 
+         WHERE sod2.SalesOrderID = sod.SalesOrderID), 2
+    ) AS QtyPercentOfOrder,
+    CASE
+        WHEN OrderQty >= 0.5 * 
+            (SELECT SUM(OrderQty) FROM [Sales].[SalesOrderDetail] sod2 
+             WHERE sod2.SalesOrderID = sod.SalesOrderID)
+            THEN 'Major Contribution'
+        ELSE 'Minor Contribution'
+    END AS ContributionCategory
+FROM [Sales].[SalesOrderDetail] sod; -- DO MORE RESEARCH ON THIS
+
+
+--MORE SUBQUERIES
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+--subqueries in where
+-- Find all order details where the line total is greater than the average line total
+SELECT *
+FROM [Sales].[SalesOrderDetail]
+WHERE LineTotal > (
+    SELECT AVG(LineTotal) FROM [Sales].[SalesOrderDetail]
+);
+
+
+-- Find all order details where the unit price is greater than the sum of all unit prices divided by 500000
+SELECT *
+FROM [Sales].[SalesOrderDetail]
+WHERE UnitPrice > (
+    SELECT SUM(UnitPrice) / 500000 FROM [Sales].[SalesOrderDetail]
+);
+
+
 
