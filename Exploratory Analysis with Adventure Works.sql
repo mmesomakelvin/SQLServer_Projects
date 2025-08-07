@@ -890,4 +890,163 @@ WHERE UnitPrice > (
 );
 
 
+--SUBQUERIES (FROM)
+--Get average line total per product, then add product name from Product table.
+-- Subquery calculates average line total per ProductID
+
+SELECT * FROM [Sales].[SalesOrderDetail];
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Production].[Product];
+
+
+SELECT 
+    p.Name AS ProductName,
+    sub.AvgLineTotal
+FROM (
+    SELECT 
+        ProductID,
+        AVG(LineTotal) AS AvgLineTotal
+    FROM [Sales].[SalesOrderDetail]
+    GROUP BY ProductID
+) AS sub
+INNER JOIN [Production].[Product] p
+    ON sub.ProductID = p.ProductID;
+
+
+--Get total sales value per year, for years with sales over $5,000,000.
+-- Subquery joins Detail and Header, aggregates by year, and then outer query filters by sales threshold
+SELECT 
+    Year,
+    TotalSales
+FROM (
+    SELECT 
+        YEAR(h.OrderDate) AS Year,
+        SUM(d.LineTotal) AS TotalSales
+    FROM [Sales].[SalesOrderDetail] d
+    INNER JOIN [Sales].[SalesOrderHeader] h
+        ON d.SalesOrderID = h.SalesOrderID
+    GROUP BY YEAR(h.OrderDate)
+) AS yearly
+WHERE yearly.TotalSales > 5000000
+ORDER BY yearly.TotalSales DESC;
+
+
+--Find each customer’s total order count.
+SELECT 
+    c.CustomerID,
+    sub.OrderCount
+FROM [Sales].[Customer] c
+INNER JOIN (
+    SELECT 
+        CustomerID, 
+        COUNT(*) AS OrderCount
+    FROM [Sales].[SalesOrderHeader]
+    GROUP BY CustomerID
+) AS sub
+    ON c.CustomerID = sub.CustomerID;
+-- Shows customers and how many orders they've placed
+
+
+--Moderate: Average Subtotal per Store, only for stores with more than 10 orders
+SELECT 
+    store.StoreID,
+    sub.AvgSubtotal
+FROM (
+    SELECT 
+        CustomerID,
+        ROUND(AVG(SubTotal),2) AS AvgSubtotal
+    FROM [Sales].[SalesOrderHeader]
+    GROUP BY CustomerID
+    HAVING COUNT(*) > 10
+) AS sub
+INNER JOIN [Sales].[Customer] store
+    ON sub.CustomerID = store.CustomerID
+WHERE store.StoreID IS NOT NULL;
+-- Shows stores with their average order subtotal, only if they've placed > 10 orders
+
+
+--Find the top 5 products by total sales value
+SELECT TOP 5
+    p.Name AS ProductName,
+    prod_sales.TotalSales
+FROM (
+    SELECT 
+        ProductID,
+        SUM(LineTotal) AS TotalSales
+    FROM [Sales].[SalesOrderDetail]
+    GROUP BY ProductID
+) AS prod_sales
+INNER JOIN [Production].[Product] p
+    ON prod_sales.ProductID = p.ProductID
+ORDER BY prod_sales.TotalSales DESC;
+-- Returns the top 5 selling products by sales value
+
+
+--SUBQUERIES (SELECT)
+
+--Show each customer and how many orders they have placed (using a subquery in SELECT):
+SELECT 
+    CustomerID,
+    -- Subquery counts number of orders for each customer
+    (SELECT COUNT(*) 
+     FROM [Sales].[SalesOrderHeader] soh 
+     WHERE soh.CustomerID = c.CustomerID
+    ) AS OrderCount
+FROM [Sales].[Customer] c;
+
+
+--Show each product and the average order quantity for that product (subquery in SELECT)
+SELECT
+    ProductID,
+    Name,
+    -- Subquery computes average ordered quantity per product
+    (SELECT AVG(OrderQty)
+     FROM [Sales].[SalesOrderDetail] sod
+     WHERE sod.ProductID = p.ProductID
+    ) AS AvgOrderQty
+FROM [Production].[Product] p
+WHERE Avgorderqty is not null; --this would give an error as sql does not allow one to use alias in a where statenent. You must doma CTE
+
+--correct quwry wothout the where
+SELECT
+    ProductID,
+    Name,
+    -- Subquery computes average ordered quantity per product
+    (SELECT AVG(OrderQty)
+     FROM [Sales].[SalesOrderDetail] sod
+     WHERE sod.ProductID = p.ProductID
+    ) AS AvgOrderQty
+FROM [Production].[Product] p;
+
+
+--Show each order, the total value of that order, and the percentage of that order’s value vs. the largest order value (mathematical calculation in subquery)
+SELECT
+    SalesOrderID,
+    -- Subquery calculates the total value of the current order
+    (SELECT SUM(LineTotal)
+     FROM [Sales].[SalesOrderDetail] sod
+     WHERE sod.SalesOrderID = soh.SalesOrderID
+    ) AS OrderTotal,
+    -- Subquery calculates the max order total, used to compute percentage
+    ROUND(
+        100.0 * 
+        (SELECT SUM(LineTotal)
+         FROM [Sales].[SalesOrderDetail] sod
+         WHERE sod.SalesOrderID = soh.SalesOrderID
+        ) /
+        (SELECT MAX(TotalOrderValue)
+         FROM (
+             SELECT SalesOrderID, SUM(LineTotal) AS TotalOrderValue
+             FROM [Sales].[SalesOrderDetail]
+             GROUP BY SalesOrderID
+         ) maxvals
+        )
+    , 2) AS PercentOfMaxOrder
+FROM [Sales].[SalesOrderHeader] soh;
+
+
+--CORRELATED SUBQUERIES
+
+
+
 
