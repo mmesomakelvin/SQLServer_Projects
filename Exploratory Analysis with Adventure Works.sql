@@ -1046,6 +1046,62 @@ FROM [Sales].[SalesOrderHeader] soh;
 
 
 --CORRELATED SUBQUERIES
+--Find all products whose list price is higher than the average list price of products in the same subcategory.
+SELECT * FROM [Production].[Product];
+
+--Find all products whose list price is higher than the average list price of products in the same product subcategory.
+SELECT 
+    ProductID,
+    Name,
+    ListPrice,
+    ProductSubcategoryID
+FROM [Production].[Product] p
+WHERE ListPrice > (
+    SELECT AVG(ListPrice)
+    FROM [Production].[Product] p2
+    WHERE p2.ProductSubcategoryID = p.ProductSubcategoryID
+);--For each order line, SQL checks if the quantity is above the average for that order.
+
+
+--Find customers who have placed at least one order with a total value greater than the average order value across all orders.
+SELECT * FROM [Sales].[Customer]
+SELECT * FROM [Sales].[SalesOrderHeader]
+SELECT * FROM [Sales].[SalesOrderDetail]
+
+SELECT 
+    c.CustomerID,
+    c.PersonID,
+    c.StoreID
+FROM [Sales].[Customer] c
+WHERE EXISTS (
+    SELECT 1
+    FROM [Sales].[SalesOrderHeader] h
+    WHERE h.CustomerID = c.CustomerID
+      AND (
+        SELECT SUM(LineTotal)
+        FROM [Sales].[SalesOrderDetail] d
+        WHERE d.SalesOrderID = h.SalesOrderID
+      ) > (
+        SELECT AVG(OrderTotal)
+        FROM (
+          SELECT SUM(LineTotal) AS OrderTotal
+          FROM [Sales].[SalesOrderDetail]
+          GROUP BY SalesOrderID
+        ) sub
+      ) AND C.StoreID IS NOT NULL
+);
+
+--NESTED SUBQUERIES
+/* A nested query (also called a subquery) is a query embedded within another SQL query. 
+The result of the inner query is used by the outer query to perform additional operations. 
+Subqueries can be used in various parts of an SQL query such as SELECT, FROM or WHERE Clauses./*
+
+
+
+
+
+
+
 
 
 
