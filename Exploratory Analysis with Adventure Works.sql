@@ -1094,7 +1094,354 @@ WHERE EXISTS (
 --NESTED SUBQUERIES
 /* A nested query (also called a subquery) is a query embedded within another SQL query. 
 The result of the inner query is used by the outer query to perform additional operations. 
-Subqueries can be used in various parts of an SQL query such as SELECT, FROM or WHERE Clauses./*
+Subqueries can be used in various parts of an SQL query such as SELECT, FROM or WHERE Clauses.*/
+
+--Find products above overall average cost
+SELECT * FROM [Production].[Product];
+
+SELECT ProductID, Name, StandardCost
+FROM [Production].[Product]
+WHERE StandardCost > (
+    SELECT AVG(StandardCost)
+    FROM [Production].[Product]
+);
+
+
+--Find customers whose order count is above the average order count
+--Subquery inside a subquery!
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+SELECT CustomerID
+FROM (
+    SELECT CustomerID, COUNT(*) AS OrderCount
+    FROM [Sales].[SalesOrderHeader]
+    GROUP BY CustomerID
+) AS customer_orders
+WHERE OrderCount > (
+    SELECT AVG(OrderCount)
+    FROM (
+        SELECT CustomerID, COUNT(*) AS OrderCount
+        FROM [Sales].[SalesOrderHeader]
+        GROUP BY CustomerID
+    ) AS customer_orders_inner
+);
+
+
+-- Find the product(s) with the highest total sales value
+--Deeply nested for max total sales.
+
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+SELECT ProductID, TotalSales
+FROM (
+    SELECT ProductID, SUM(LineTotal) AS TotalSales
+    FROM [Sales].[SalesOrderDetail]
+    GROUP BY ProductID
+) AS prod_sales
+WHERE TotalSales = (
+    SELECT MAX(TotalSales)
+    FROM (
+        SELECT ProductID, SUM(LineTotal) AS TotalSales
+        FROM [Sales].[SalesOrderDetail]
+        GROUP BY ProductID
+    ) AS max_sales
+);
+
+
+--ind the year with the highest average order value and display total sales for that year
+--Nested subqueries for year, average, and final sales.
+
+SELECT * FROM [Sales].[SalesOrderDetail];
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+SELECT Year, TotalSales
+FROM (
+    SELECT 
+        YEAR(h.OrderDate) AS Year,
+        SUM(d.LineTotal) AS TotalSales,
+        AVG(d.LineTotal) AS AvgOrderValue
+    FROM [Sales].[SalesOrderHeader] h
+    INNER JOIN [Sales].[SalesOrderDetail] d
+        ON h.SalesOrderID = d.SalesOrderID
+    GROUP BY YEAR(h.OrderDate)
+) AS yearly
+WHERE AvgOrderValue = (
+    SELECT MAX(AvgOrderValue)
+    FROM (
+        SELECT 
+            YEAR(h.OrderDate) AS Year,
+            AVG(d.LineTotal) AS AvgOrderValue
+        FROM [Sales].[SalesOrderHeader] h
+        INNER JOIN [Sales].[SalesOrderDetail] d
+            ON h.SalesOrderID = d.SalesOrderID
+        GROUP BY YEAR(h.OrderDate)
+    ) AS avgvals
+);
+
+
+
+--COMMON TABLE EXPRESSIONS (CTEs)
+/*In SQL, a Common Table Expression (CTE) is an essential tool for simplifying complex queries and making them more readable. 
+By defining temporary result sets that can be referenced multiple times, a CTE in SQL allows developers to break down complicated logic into manageable parts. 
+CTEs help with hierarchical data representation, improve code reusability, and simplify maintenance.*/
+
+SELECT * FROM [Production].[Product];
+SELECT * FROM [Sales].[SalesOrderDetail];
+SELECT * FROM [Sales].[SalesOrderHeader];
+SELECT * FROM [Sales].[Customer];
+
+
+--Average Product Cost
+WITH AvgCost AS (
+    SELECT AVG(StandardCost) AS AvgStandardCost
+    FROM [Production].[Product]
+)
+SELECT *
+FROM AvgCost;
+
+
+--Top 5 Selling Products by Sales Value
+WITH ProductSales AS (
+    SELECT 
+        ProductID, 
+        SUM(LineTotal) AS TotalSales
+    FROM [Sales].[SalesOrderDetail]
+    GROUP BY ProductID
+)
+SELECT TOP 5 
+    ps.ProductID,   -- changed from p.ProductID to ps.ProductID
+    pr.Name, 
+    ps.TotalSales
+FROM ProductSales ps
+INNER JOIN [Production].[Product] pr
+    ON ps.ProductID = pr.ProductID
+ORDER BY ps.TotalSales DESC;
+
+
+--Orders per Customer
+WITH CustomerOrderCounts AS (
+    SELECT 
+        CustomerID,
+        COUNT(*) AS OrderCount
+    FROM [Sales].[SalesOrderHeader]
+    GROUP BY CustomerID
+)
+SELECT 
+    c.CustomerID,
+    c.PersonID,
+    coc.OrderCount
+FROM [Sales].[Customer] c
+LEFT JOIN CustomerOrderCounts coc
+    ON c.CustomerID = coc.CustomerID
+ WHERE C.PersonID IS NOT NULL;
+
+
+ --Yearly Sales Summary
+ WITH YearlySales AS (
+    SELECT 
+        YEAR(h.OrderDate) AS SalesYear,
+        SUM(d.LineTotal) AS TotalSales
+    FROM [Sales].[SalesOrderHeader] h
+    INNER JOIN [Sales].[SalesOrderDetail] d
+        ON h.SalesOrderID = d.SalesOrderID
+    GROUP BY YEAR(h.OrderDate)
+)
+SELECT *
+FROM YearlySales
+ORDER BY TotalSales DESC;
+
+
+--Get Year and Month from Orders
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+WITH OrderDates AS (
+    SELECT
+        SalesOrderID,
+        OrderDate,
+        YEAR(OrderDate) AS OrderYear,
+        MONTH(OrderDate) AS OrderMonth
+    FROM [Sales].[SalesOrderHeader]
+)
+SELECT *
+FROM OrderDates;
+
+
+--Get Year/Month from Employee Hire Date
+SELECT * FROM[HumanResources].[Employee];
+
+WITH EmployeeHireDates AS (
+    SELECT
+        BusinessEntityID,
+        JobTitle,
+        HireDate,
+        YEAR(HireDate) AS HireYear,
+        MONTH(HireDate) AS HireMonth
+    FROM [HumanResources].[Employee]
+)
+SELECT *
+FROM EmployeeHireDates;
+
+
+--WINDOWS FUNCTIONS
+/*SQL window functions are essential for advanced data analysis and database management. 
+It is a type of function that allows us to perform calculations across a specific set of rows related to the current row. 
+These calculations happen within a defined window of data and they are particularly useful for aggregates, rankings and cumulative totals without modifying the dataset.*/
+
+/*RANK(): Assigns ranks to rows, skipping ranks for duplicates.
+DENSE_RANK(): Assigns ranks to rows without skipping rank numbers for duplicates.
+ROW_NUMBER(): Assigns a unique number to each row in the result set.*/
+
+/* The OVER clause is used in SQL to specify the partitioning, ordering and window "over which" the analytic function operates. 
+It is used to determine which rows from the query are applied to the function, what order they are evaluated in by that function, and when the function’s calculations should restart.*/
+
+--Get a row number for every order
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+SELECT 
+    SalesOrderID,
+    OrderDate,
+    ROW_NUMBER() OVER (ORDER BY OrderDate) AS RowNum
+FROM [Sales].[SalesOrderHeader]; --Numbers each order based on the order date.
+
+
+--Rank orders from highest to lowest subtotal
+SELECT 
+    SalesOrderID,
+    SubTotal,
+    RANK() OVER (ORDER BY SubTotal DESC) AS SubtotalRank
+FROM [Sales].[SalesOrderHeader]; --Assigns a rank based on order subtotal.
+
+
+--Assigns the same rank for ties in product prices:
+SELECT * FROM [Production].[Product];
+
+SELECT 
+    ProductID,
+    Name,
+    ListPrice,
+    DENSE_RANK() OVER (ORDER BY ListPrice DESC) AS PriceRank
+FROM [Production].[Product]; --If two products have the same price, they get the same rank, and the next rank is not skipped.
+
+
+--Calculate a cumulative sum of sales line totals
+
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+SELECT 
+    SalesOrderID,
+    LineTotal,
+    SUM(LineTotal) OVER (ORDER BY SalesOrderID) AS RunningTotal
+FROM [Sales].[SalesOrderDetail]; --Shows a running total as you go through the order details.
+
+
+--PARTITION BY AND OVER
+/*  the PARTITION BY clause is used with window functions to divide a result set into subsets, or "partitions," based on one or more columns. 
+Each partition is processed independently by the window function, allowing calculations like rankings, 
+running totals, or averages to be applied within each subset rather than across the entire dataset.*/
+
+
+--Rank each product’s sales lines by line total, restarting the rank for each product:
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+SELECT 
+    ProductID,
+    SalesOrderID,
+    LineTotal,
+    RANK() OVER (
+        PARTITION BY ProductID 
+        ORDER BY LineTotal DESC
+    ) AS ProductLineRank
+FROM [Sales].[SalesOrderDetail]; --Ranks line items for each product separately, from largest to smallest line total.
+
+
+--Row Number per Customer
+--Assign a row number to each order, starting at 1 for each customer.
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+SELECT
+    CustomerID,
+    SalesOrderID,
+    OrderDate,
+    ROW_NUMBER() OVER (
+        PARTITION BY CustomerID 
+        ORDER BY OrderDate
+    ) AS OrderSeq
+FROM [Sales].[SalesOrderHeader];--This resets the row numbering for each customer, showing the sequence of their orders by date.
+
+
+
+--Running Total of LineTotal per Order
+--Calculate a running total of line items within each order.
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+SELECT
+    SalesOrderID,
+    ProductID,
+    LineTotal,
+    SUM(LineTotal) OVER (
+        PARTITION BY SalesOrderID 
+        ORDER BY ProductID
+    ) AS RunningLineTotal
+FROM [Sales].[SalesOrderDetail];--For each order, this sums up LineTotal as you move through the products in that order.
+
+
+
+--Average LineTotal per Product and Rank Each Line
+--Compute the average line total for each product and rank order lines by LineTotal within each product.
+SELECT * FROM [Sales].[SalesOrderDetail];
+
+SELECT
+    ProductID,
+    SalesOrderID,
+    LineTotal,
+    AVG(LineTotal) OVER (
+        PARTITION BY ProductID
+    ) AS AvgLineTotalPerProduct,
+    RANK() OVER (
+        PARTITION BY ProductID 
+        ORDER BY LineTotal DESC
+    ) AS LineRankInProduct
+FROM [Sales].[SalesOrderDetail]; --Calculates the average line total for each product and ranks each line (largest first) within the product group.
+
+
+
+--Partition by Multiple Columns—Rank by Year and Product
+--Rank products by their sales total within each year.
+SELECT * FROM [Sales].[SalesOrderDetail];
+SELECT * FROM [Sales].[SalesOrderHeader];
+
+SELECT
+    YEAR(h.OrderDate) AS SalesYear,
+    d.ProductID,
+    SUM(d.LineTotal) AS ProductSales,
+    RANK() OVER (
+        PARTITION BY YEAR(h.OrderDate)
+        ORDER BY SUM(d.LineTotal) DESC
+    ) AS YearlyProductRank
+FROM [Sales].[SalesOrderHeader] h
+INNER JOIN [Sales].[SalesOrderDetail] d
+    ON h.SalesOrderID = d.SalesOrderID
+GROUP BY YEAR(h.OrderDate), d.ProductID;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
